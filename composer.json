@@ -1,0 +1,67 @@
+{
+    "name": "jinomial/laravel-ssl",
+    "description": "An SSL service for Laravel",
+    "keywords": [
+        "jinomial",
+        "laravel",
+        "laravel-ssl",
+        "ssl",
+        "tls"
+    ],
+    "homepage": "https://github.com/jinomial/laravel-ssl",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Jason Schmedes",
+            "email": "jinomial@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.0",
+        "guzzlehttp/guzzle": "^7.3",
+        "illuminate/contracts": "^8.37"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.2",
+        "nunomaduro/collision": "^5.3",
+        "orchestra/testbench": "^6.15",
+        "pestphp/pest": "^1.18",
+        "pestphp/pest-plugin-laravel": "^1.1",
+        "pestphp/pest-plugin-mock": "^1.0",
+        "spatie/laravel-ray": "^1.23",
+        "vimeo/psalm": "^4.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "Jinomial\\LaravelSsl\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Jinomial\\LaravelSsl\\Tests\\": "tests"
+        }
+    },
+    "scripts": {
+        "test": "./vendor/bin/pest --no-coverage",
+        "test-unit": "./vendor/bin/pest --no-coverage --testsuite=unit",
+        "test-integration": "./vendor/bin/pest --no-coverage --testsuite=integration",
+        "test-coverage": "phpdbg -qrr ./vendor/bin/pest",
+        "lint": "./vendor/bin/php-cs-fixer --config=.php_cs.dist.php --allow-risky=yes fix"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Jinomial\\LaravelSsl\\SslServiceProvider"
+            ],
+            "aliases": {
+                "Ssl": "Jinomial\\LaravelSsl\\Facades\\Ssl"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
