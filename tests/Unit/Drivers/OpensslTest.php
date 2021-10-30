@@ -4,14 +4,9 @@ namespace Jinomial\LaravelSsl\Tests\Unit\Drivers;
 
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\ClientInterface;
-use GuzzleHttp\PSR7\Response;
-use GuzzleHttp\Psr7\Utils;
-use Illuminate\Support\Arr;
-use InvalidArgumentException;
 use Jinomial\LaravelSsl\Contracts\Ssl\Driver as DriverContract;
-use Jinomial\LaravelSsl\Drivers\Openssl;
 use Jinomial\LaravelSsl\Drivers\Driver;
-use JsonException;
+use Jinomial\LaravelSsl\Drivers\Openssl;
 
 const HOST = 'jinomial.com';
 

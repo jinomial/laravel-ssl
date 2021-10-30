@@ -84,6 +84,7 @@ class OpenSsl extends Driver implements DriverContract
 
             $certificate = null;
             $verification = null;
+
             try {
                 if ($adCaIssuers) {
                     $x509 = $this->getCaIssuers($host);
@@ -94,9 +95,9 @@ class OpenSsl extends Driver implements DriverContract
                     $verification = $details['verification'];
                 }
                 $certificate = openssl_x509_parse($x509);
+            } catch (ServerException $e) {
+            } catch (ProcessFailedException $e) {
             }
-            catch (ServerException $e) { }
-            catch (ProcessFailedException $e) { }
 
             $results[] = [
                 'certificate' => $certificate,
@@ -233,7 +234,7 @@ class OpenSsl extends Driver implements DriverContract
 
         $der = (string) $response->getBody();
         $x509 = $this->getX509($der, [
-            OpenSsl::OPTION_DER => true
+            OpenSsl::OPTION_DER => true,
         ]);
 
         return $x509;
@@ -247,23 +248,23 @@ class OpenSsl extends Driver implements DriverContract
      */
     private function getVerification($handshake)
     {
-      $lines = explode("\n", $handshake);
-      $needle = 'verify return code';
-      $pattern = '/([0-9]{1,2})\s\((.*)\)/';
-      $matches = [];
-      foreach ($lines as $l) {
-        $line = Str::of($l)->trim()->lower();
-        if ($line->startsWith($needle)) {
-          preg_match($pattern, (string)$line, $matches);
-          if (count($matches) === 3) {
-            return [
+        $lines = explode("\n", $handshake);
+        $needle = 'verify return code';
+        $pattern = '/([0-9]{1,2})\s\((.*)\)/';
+        $matches = [];
+        foreach ($lines as $l) {
+            $line = Str::of($l)->trim()->lower();
+            if ($line->startsWith($needle)) {
+                preg_match($pattern, (string)$line, $matches);
+                if (count($matches) === 3) {
+                    return [
               'code' => $matches[1],
-              'message' => $matches[2]
+              'message' => $matches[2],
             ];
-          }
+                }
+            }
         }
-      }
 
-      return null;
+        return null;
     }
 }

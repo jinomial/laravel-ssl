@@ -4,9 +4,9 @@ namespace Jinomial\LaravelSsl\Tests\Unit;
 
 use Illuminate\Config\Repository;
 use InvalidArgumentException;
-use Jinomial\LaravelSsl\SslManager;
-use Jinomial\LaravelSsl\Drivers\OpenSsl;
 use Jinomial\LaravelSsl\Drivers\Driver;
+use Jinomial\LaravelSsl\Drivers\OpenSsl;
+use Jinomial\LaravelSsl\SslManager;
 
 uses()->group('manager');
 
