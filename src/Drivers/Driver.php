@@ -9,7 +9,7 @@ abstract class Driver implements DriverContract
     /**
      * The name that is configured for the driver.
      *
-     * @var string
+     * @psalm-suppress PossiblyUnusedProperty
      */
-    protected $name;
+    protected string $name;
 }

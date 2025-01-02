@@ -6,8 +6,8 @@ use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\ServerException;
 use InvalidArgumentException;
 use Jinomial\LaravelSsl\Contracts\Ssl\Driver as DriverContract;
-use Str;
 use Symfony\Component\Process\Exception\ProcessFailedException;
+use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
 
@@ -30,19 +30,15 @@ class OpenSsl extends Driver implements DriverContract
 
     /**
      * Guzzle client instance.
-     *
-     * @var \GuzzleHttp\ClientInterface
      */
-    protected $client;
+    protected ClientInterface $client;
 
     /**
      * Create a new Ssl driver instance.
      *
-     * @param  string  $name
-     * @param  \GuzzleHttp\ClientInterface  $client
      * @return void
      */
-    public function __construct($name, ClientInterface $client)
+    public function __construct(string $name, ClientInterface $client)
     {
         $this->name = $name;
         $this->client = $client;
@@ -50,13 +46,8 @@ class OpenSsl extends Driver implements DriverContract
 
     /**
      * Get a security certificate used by $host:$port.
-     *
-     * @param string|array $host
-     * @param string $port
-     * @param array $options
-     * @return array
      */
-    public function show($host, $port = '443', array $options = [])
+    public function show(string|array $host, string $port = '443', array $options = []): array
     {
         if (! is_array($host)) {
             $host = [['host' => $host, 'port' => $port]];
@@ -67,20 +58,16 @@ class OpenSsl extends Driver implements DriverContract
 
     /**
      * Make HTTP requests for each lookup question.
-     *
-     * @param array $questions
-     * @param array $options
-     * @return array
      */
-    protected function runProcesses(array $questions, array $options)
+    protected function runProcesses(array $questions, array $options): array
     {
         $adCaIssuers = $options[OpenSsl::OPTION_ID_AD_CAISSUERS] ??
             OpenSsl::OPTION_ID_AD_CAISSUERS_DEFAULT;
         $results = [];
 
         foreach ($questions as $question) {
-            $host = $question['host'] ?? null;
-            $port = $question['port'] ?? '443';
+            $host = $question['host'] ?? 'localhost';
+            $port = (string)($question['port'] ?? '443');
 
             $certificate = null;
             $verification = null;
@@ -97,6 +84,7 @@ class OpenSsl extends Driver implements DriverContract
                 $certificate = openssl_x509_parse($x509);
             } catch (ServerException $e) {
             } catch (ProcessFailedException $e) {
+            } catch (ProcessTimedOutException $e) {
             }
 
             $results[] = [
@@ -110,13 +98,8 @@ class OpenSsl extends Driver implements DriverContract
 
     /**
      * Get the parsed certificate returned from a socket.
-     *
-     * @param string $host
-     * @param string $port
-     * @param array $options
-     * @return array
      */
-    protected function getCertificate($host, $port, array $options = [])
+    protected function getCertificate(string $host, string $port, array $options = []): array
     {
         if (! $host) {
             throw new InvalidArgumentException(
@@ -137,12 +120,9 @@ class OpenSsl extends Driver implements DriverContract
     /**
      * Get the output of `echo | openssl s_client -connect $host:$port`.
      *
-     * @param string $host
-     * @param string $port
-     * @param array $options
-     * @return string
+     * @psalm-suppress PossiblyUnusedParam
      */
-    protected function getHandshake($host, $port, array $options = [])
+    protected function getHandshake(string $host, string $port, array $options = []): string
     {
         $arguments = [
             'openssl',
@@ -186,12 +166,8 @@ class OpenSsl extends Driver implements DriverContract
 
     /**
      * Convert certificate data into x509 format.
-     *
-     * @param string $input
-     * @param array $options
-     * @return string
      */
-    protected function getX509($input, array $options = [])
+    protected function getX509(string $input, array $options = []): string
     {
         $arguments = [
             'openssl',
@@ -221,11 +197,8 @@ class OpenSsl extends Driver implements DriverContract
 
     /**
      * Get an id-ad-caIssuers as an x509.
-     *
-     * @param string $url
-     * @return string
      */
-    protected function getCaIssuers($url)
+    protected function getCaIssuers(string $url): string
     {
         $response = $this->client->request('GET', $url, [
             // 'debug' => TRUE,
@@ -242,25 +215,22 @@ class OpenSsl extends Driver implements DriverContract
 
     /**
      * Parse the "Verify return code: xx (message)" into code and message.
-     *
-     * @param string $handshake
-     * @return array
      */
-    private function getVerification($handshake)
+    private function getVerification(string $handshake): ?array
     {
         $lines = explode("\n", $handshake);
         $needle = 'verify return code';
         $pattern = '/([0-9]{1,2})\s\((.*)\)/';
         $matches = [];
         foreach ($lines as $l) {
-            $line = Str::of($l)->trim()->lower();
-            if ($line->startsWith($needle)) {
-                preg_match($pattern, (string)$line, $matches);
+            $line = strtolower(trim($l));
+            if (str_starts_with($line, $needle)) {
+                preg_match($pattern, $line, $matches);
                 if (count($matches) === 3) {
                     return [
-              'code' => $matches[1],
-              'message' => $matches[2],
-            ];
+                        'code' => $matches[1],
+                        'message' => $matches[2],
+                    ];
                 }
             }
         }

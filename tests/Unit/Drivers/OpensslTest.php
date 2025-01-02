@@ -27,5 +27,5 @@ it('shows a certificate', function () {
     $client = new HttpClient();
     $driver = new Openssl('openssl', $client);
     $answer = $driver->show(HOST, 443);
-    expect($answer[0]['certificate']['subject']['CN'])->toEqual('sni.cloudflaressl.com');
+    expect($answer[0]['certificate']['subject']['CN'])->toEqual(HOST);
 })->group('network');

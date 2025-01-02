@@ -2,29 +2,31 @@
 
 namespace Jinomial\LaravelSsl\Tests\Unit;
 
-use Illuminate\Config\Repository;
+use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Config;
 use InvalidArgumentException;
 use Jinomial\LaravelSsl\Drivers\Driver;
 use Jinomial\LaravelSsl\Drivers\OpenSsl;
 use Jinomial\LaravelSsl\SslManager;
+use Mockery;
 
 uses()->group('manager');
 
 test('SslManager constructs', function () {
-    $app = [];
+    $app = Application::configure()->create();
     $manager = new SslManager($app);
     expect($manager)->toBeInstanceOf(SslManager::class);
 });
 
 test('SslManager can get application', function () {
-    $app = [uniqid()];
+    $app = Application::configure()->create();
     $manager = new SslManager($app);
     expect($manager->getApplication())->toEqual($app);
 });
 
 test('SslManager application can be set', function () {
-    $app = [];
-    $newApp = [uniqid()];
+    $app = Config::getFacadeApplication();
+    $newApp = Application::configure()->create();
     $manager = new SslManager($app);
     $manager->setApplication($newApp);
     expect($manager->getApplication())->toEqual($newApp);
@@ -32,17 +34,15 @@ test('SslManager application can be set', function () {
 
 test('SslManager can get default driver name', function () {
     $name = uniqid();
-    $config = new Repository(['ssl' => ['default' => $name]]);
-    $app = ['config' => $config];
-    $manager = new SslManager($app);
+    $config = Config::set(['ssl' => ['default' => $name]]);
+    $manager = new SslManager(Config::getFacadeApplication());
     expect($manager->getDefaultDriver())->toEqual($name);
 });
 
 test('SslManager can set default driver name', function () {
     $name = uniqid();
-    $config = new Repository(['ssl' => ['default' => 'driver']]);
-    $app = ['config' => $config];
-    $manager = new SslManager($app);
+    $config = Config::set(['ssl' => ['default' => 'driver']]);
+    $manager = new SslManager(Config::getFacadeApplication());
     $manager->setDefaultDriver($name);
     expect($manager->getDefaultDriver())->toEqual($name);
 });
@@ -51,28 +51,26 @@ test('SslManager gets a driver by name', function () {
     // openssl is a real driver that is created by the function
     // SslManager::createOpensslDriver()
     $driverConfig = ['driver' => 'openssl'];
-    $config = new Repository(['ssl' => [
+    $config = Config::set(['ssl' => [
         'default' => 'no-default-driver',
         'drivers' => [
             'mydriver' => $driverConfig,
         ],
     ]]);
-    $app = ['config' => $config];
-    $manager = new SslManager($app);
+    $manager = new SslManager(Config::getFacadeApplication());
     $driver = $manager->driver('mydriver');
     expect($driver)->toBeInstanceOf(Driver::class);
 });
 
 test('SslManager supports openssl driver', function () {
     $driverConfig = ['driver' => 'openssl'];
-    $config = new Repository(['ssl' => [
+    $config = Config::set(['ssl' => [
         'default' => 'no-default-driver',
         'drivers' => [
             'mydriver' => $driverConfig,
         ],
     ]]);
-    $app = ['config' => $config];
-    $manager = new SslManager($app);
+    $manager = new SslManager(Config::getFacadeApplication());
     $driver = $manager->driver('mydriver');
     expect($driver)->toBeInstanceOf(OpenSsl::class);
 });
@@ -81,25 +79,23 @@ test('SslManager gets a default driver when not specified', function () {
     // openssl is a real driver that is created by the function
     // SslManager::createOpensslDriver()
     $driverConfig = ['driver' => 'openssl'];
-    $config = new Repository(['ssl' => [
+    $config = Config::set(['ssl' => [
         'default' => 'my-default-driver',
         'drivers' => [
             'my-default-driver' => $driverConfig,
         ],
     ]]);
-    $app = ['config' => $config];
-    $manager = new SslManager($app);
+    $manager = new SslManager(Config::getFacadeApplication());
     $driver = $manager->driver();
     expect($driver)->toBeInstanceOf(Driver::class);
 });
 
 test('SslManager throws error when driver not configured', function () {
-    $config = new Repository(['ssl' => [
+    $config = Config::set(['ssl' => [
         'default' => 'no-default-driver',
         'drivers' => [],
     ]]);
-    $app = ['config' => $config];
-    $manager = new SslManager($app);
+    $manager = new SslManager(Config::getFacadeApplication());
     $driver = $manager->driver('unconfigured-driver');
 })->throws(InvalidArgumentException::class);
 
@@ -107,14 +103,13 @@ test('SslManager throws error when a driver is not supported', function () {
     // fake is a fake driver that can't be created because the function
     // SslManager::createFakeDriver() doesn't exist.
     $driverConfig = ['driver' => 'fake'];
-    $config = new Repository(['ssl' => [
+    $config = Config::set(['ssl' => [
         'default' => 'no-default-driver',
         'drivers' => [
             'defined-driver' => $driverConfig,
         ],
     ]]);
-    $app = ['config' => $config];
-    $manager = new SslManager($app);
+    $manager = new SslManager(Config::getFacadeApplication());
     $driver = $manager->driver('defined-driver');
 })->throws(InvalidArgumentException::class);
 
@@ -122,14 +117,13 @@ test('SslManager can be extended with custom driver creators', function () {
     // custom is a driver that can't be created because the function
     // SslManager::createCustomDriver() doesn't exist.
     $driverConfig = ['driver' => 'custom'];
-    $config = new Repository(['ssl' => [
+    $config = Config::set(['ssl' => [
         'default' => 'no-default-driver',
         'drivers' => [
             'defined-driver' => $driverConfig,
         ],
     ]]);
-    $app = ['config' => $config];
-    $manager = new SslManager($app);
+    $manager = new SslManager(Config::getFacadeApplication());
     // Extend the manager with a driver called 'custom'.
     $manager->extend(
         'custom',
@@ -143,16 +137,15 @@ test('SslManager custom creators overwrite existing creators', function () {
     // openssl is a real driver that can be created because the function
     // SslManager::createOpensslDriver() exists.
     $driverConfig = ['driver' => 'openssl'];
-    $config = new Repository(['ssl' => [
+    $config = Config::set(['ssl' => [
         'default' => 'no-default-driver',
         'drivers' => [
             'defined-driver' => $driverConfig,
         ],
     ]]);
-    $app = ['config' => $config];
-    $manager = new SslManager($app);
+    $manager = new SslManager(Config::getFacadeApplication());
     // Extend the manager to overwrite the openssl driver.
-    $overwrittenDriver = 'overwritten-openssl-driver';
+    $overwrittenDriver = Mockery::mock(Driver::class);
     $manager->extend(
         'openssl',
         fn ($theApp, $theName, $theConfig) => $overwrittenDriver
@@ -165,20 +158,19 @@ test('SslManager caches drivers locally by name', function () {
     // openssl is a real driver that can be created because the function
     // SslManager::createOpensslDriver() exists.
     $driverConfig = ['driver' => 'openssl'];
-    $config = new Repository(['ssl' => [
+    $config = Config::set(['ssl' => [
         'default' => 'no-default-driver',
         'drivers' => [
             'defined-driver' => $driverConfig,
         ],
     ]]);
-    $app = ['config' => $config];
-    $manager = new SslManager($app);
+    $manager = new SslManager(Config::getFacadeApplication());
 
     // Get the driver so now it is cached.
     $driver = $manager->driver('defined-driver');
 
     // Extend the manager to overwrite the openssl driver.
-    $overwrittenDriver = uniqid();
+    $overwrittenDriver = Mockery::mock(Driver::class);
     $manager->extend(
         'openssl',
         fn ($theApp, $theName, $theConfig) => $overwrittenDriver
@@ -193,20 +185,19 @@ test('SslManager can purge cached drivers', function () {
     // openssl is a real driver that can be created because the function
     // SslManager::createOpensslDriver() exists.
     $driverConfig = ['driver' => 'openssl'];
-    $config = new Repository(['ssl' => [
+    $config = Config::set(['ssl' => [
         'default' => 'no-default-driver',
         'drivers' => [
             'defined-driver' => $driverConfig,
         ],
     ]]);
-    $app = ['config' => $config];
-    $manager = new SslManager($app);
+    $manager = new SslManager(Config::getFacadeApplication());
 
     // Get the openssl driver so now it is cached.
     $driver = $manager->driver('defined-driver');
 
     // Extend the manager to overwrite the openssl driver.
-    $overwrittenDriver = uniqid();
+    $overwrittenDriver = Mockery::mock(Driver::class);
     $manager->extend(
         'openssl',
         fn ($theApp, $theName, $theConfig) => $overwrittenDriver
@@ -225,14 +216,13 @@ test('SslManager purges by name and not driver', function () {
     // openssl is a real driver that can be created because the function
     // SslManager::createOpensslDriver() exists.
     $driverConfig = ['driver' => 'openssl'];
-    $config = new Repository(['ssl' => [
+    $config = Config::set(['ssl' => [
         'default' => 'no-default-driver',
         'drivers' => [
             'defined-driver' => $driverConfig,
         ],
     ]]);
-    $app = ['config' => $config];
-    $manager = new SslManager($app);
+    $manager = new SslManager(Config::getFacadeApplication());
 
     // Get the driver so now it is cached.
     $driver = $manager->driver('defined-driver');
@@ -259,24 +249,23 @@ test('SslManager can forget all drivers', function () {
     $driver2 = uniqid();
     $driverConfig1 = ['driver' => $driver1];
     $driverConfig2 = ['driver' => $driver2];
-    $config = new Repository(['ssl' => [
+    $config = Config::set(['ssl' => [
         'default' => 'no-default-driver',
         'drivers' => [
             'defined-driver-1' => $driverConfig1,
             'defined-driver-2' => $driverConfig2,
         ],
     ]]);
-    $app = ['config' => $config];
-    $manager = new SslManager($app);
+    $manager = new SslManager(Config::getFacadeApplication());
 
     // Extend the manager to support the custom drivers.
     $manager->extend(
         $driver1,
-        fn ($theApp, $theName, $theConfig) => $driver1
+        fn ($theApp, $theName, $theConfig) => Mockery::mock(Driver::class)
     );
     $manager->extend(
         $driver2,
-        fn ($theApp, $theName, $theConfig) => $driver2
+        fn ($theApp, $theName, $theConfig) => Mockery::mock(Driver::class)
     );
 
     // Get both drivers so now both are cached.
@@ -284,12 +273,12 @@ test('SslManager can forget all drivers', function () {
     $manager->driver('defined-driver-2');
 
     // Extend the manager to overwrite the driver creators.
-    $newDriver1 = uniqid();
+    $newDriver1 = Mockery::mock(Driver::class);
     $manager->extend(
         $driver1,
         fn ($theApp, $theName, $theConfig) => $newDriver1
     );
-    $newDriver2 = uniqid();
+    $newDriver2 = Mockery::mock(Driver::class);
     $manager->extend(
         $driver2,
         fn ($theApp, $theName, $theConfig) => $newDriver2

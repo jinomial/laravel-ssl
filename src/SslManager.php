@@ -4,32 +4,29 @@ namespace Jinomial\LaravelSsl;
 
 use Closure;
 use GuzzleHttp\Client as HttpClient;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Config;
 use InvalidArgumentException;
 use Jinomial\LaravelSsl\Contracts\Ssl\Factory as FactoryContract;
+use Jinomial\LaravelSsl\Drivers\Driver;
 
 class SslManager implements FactoryContract
 {
     /**
      * The application instance.
-     *
-     * @var \Illuminate\Contracts\Foundation\Application
      */
-    protected $app;
+    protected Application $app;
 
     /**
      * The array of resolved drivers.
-     *
-     * @var array
      */
-    protected $drivers = [];
+    protected array $drivers = [];
 
     /**
      * The registered custom driver creators.
-     *
-     * @var array
      */
-    protected $customCreators = [];
+    protected array $customCreators = [];
 
     /**
      * Create a new Ssl manager instance.
@@ -37,18 +34,15 @@ class SslManager implements FactoryContract
      * @param  \Illuminate\Contracts\Foundation\Application  $app
      * @return void
      */
-    public function __construct($app)
+    public function __construct(Application $app)
     {
         $this->app = $app;
     }
 
     /**
      * Get a driver instance by name.
-     *
-     * @param  string|null  $name
-     * @return \App\Contracts\Ssl\Driver
      */
-    public function driver($name = null)
+    public function driver(?string $name = null): Driver
     {
         $name = $name ?: $this->getDefaultDriver();
 
@@ -57,11 +51,8 @@ class SslManager implements FactoryContract
 
     /**
      * Attempt to get the Ssl driver from the local cache.
-     *
-     * @param  string  $name
-     * @return \App\Contracts\Ssl\Driver
      */
-    protected function get($name)
+    protected function get(string $name): Driver
     {
         return $this->drivers[$name] ?? $this->resolve($name);
     }
@@ -69,12 +60,9 @@ class SslManager implements FactoryContract
     /**
      * Resolve the given Ssl driver.
      *
-     * @param  string  $name
-     * @return \App\Contracts\Ssl\Driver
-     *
      * @throws \InvalidArgumentException
      */
-    protected function resolve($name)
+    protected function resolve(string $name): Driver
     {
         $config = $this->getConfig($name);
 
@@ -98,10 +86,9 @@ class SslManager implements FactoryContract
     /**
      * Call a custom driver creator.
      *
-     * @param  array  $config
      * @return mixed
      */
-    protected function callCustomCreator($name, array $config)
+    protected function callCustomCreator(string $name, array $config)
     {
         return $this->customCreators[$config['driver']]($this->app, $name, $config);
     }
@@ -109,11 +96,9 @@ class SslManager implements FactoryContract
     /**
      * Create an instance of the OpenSsl driver.
      *
-     * @param  string $name
-     * @param  array  $config
-     * @return \App\Contracts\Ssl\Driver
+     * @psalm-suppress PossiblyUnusedMethod
      */
-    protected function createOpensslDriver($name, array $config)
+    protected function createOpensslDriver(string $name, array $config): Driver
     {
         return new Drivers\OpenSsl(
             $name,
@@ -123,11 +108,8 @@ class SslManager implements FactoryContract
 
     /**
      * Get a fresh Guzzle HTTP client instance.
-     *
-     * @param  array  $config
-     * @return \GuzzleHttp\Client
      */
-    protected function guzzle(array $config)
+    protected function guzzle(array $config): HttpClient
     {
         return new HttpClient(Arr::add(
             $config['guzzle'] ?? [],
@@ -138,44 +120,36 @@ class SslManager implements FactoryContract
 
     /**
      * Get the Ssl driver configuration.
-     *
-     * @param  string  $name
-     * @return array
      */
-    protected function getConfig(string $name)
+    protected function getConfig(string $name): ?array
     {
-        return $this->app['config']["ssl.drivers.{$name}"];
+        return Config::get("ssl.drivers.{$name}");
     }
 
     /**
      * Get the default SSL driver name.
-     *
-     * @return string
      */
-    public function getDefaultDriver()
+    public function getDefaultDriver(): string
     {
-        return $this->app['config']['ssl.default'];
+        return Config::get('ssl.default');
     }
 
     /**
      * Set the default driver name.
      *
-     * @param  string  $name
-     * @return void
+     * @api
      */
-    public function setDefaultDriver(string $name)
+    public function setDefaultDriver(string $name): void
     {
-        $this->app['config']['ssl.default'] = $name;
+        Config::set('ssl.default', $name);
     }
 
     /**
      * Register a custom driver creator Closure.
      *
-     * @param  string  $driver
-     * @param  \Closure  $callback
-     * @return $this
+     * @api
      */
-    public function extend($driver, Closure $callback)
+    public function extend(string $driver, Closure $callback): SslManager
     {
         $this->customCreators[$driver] = $callback;
 
@@ -185,10 +159,9 @@ class SslManager implements FactoryContract
     /**
      * Destroy the given driver instance and remove from local cache.
      *
-     * @param  string|null  $name
-     * @return void
+     * @api
      */
-    public function purge($name = null)
+    public function purge(?string $name = null): void
     {
         $name = $name ?: $this->getDefaultDriver();
 
@@ -198,9 +171,9 @@ class SslManager implements FactoryContract
     /**
      * Get the application instance used by the manager.
      *
-     * @return \Illuminate\Contracts\Foundation\Application
+     * @api
      */
-    public function getApplication()
+    public function getApplication(): Application
     {
         return $this->app;
     }
@@ -208,10 +181,9 @@ class SslManager implements FactoryContract
     /**
      * Set the application instance used by the manager.
      *
-     * @param  \Illuminate\Contracts\Foundation\Application  $app
-     * @return $this
+     * @api
      */
-    public function setApplication($app)
+    public function setApplication(Application $app): SslManager
     {
         $this->app = $app;
 
@@ -221,9 +193,9 @@ class SslManager implements FactoryContract
     /**
      * Forget all of the resolved driver instances.
      *
-     * @return $this
+     * @api
      */
-    public function forgetDrivers()
+    public function forgetDrivers(): SslManager
     {
         $this->drivers = [];
 
@@ -233,11 +205,10 @@ class SslManager implements FactoryContract
     /**
      * Dynamically call the default driver instance.
      *
-     * @param  string  $method
-     * @param  array  $parameters
+     * @api
      * @return mixed
      */
-    public function __call($method, $parameters)
+    public function __call(string $method, array $parameters)
     {
         return $this->driver()->$method(...$parameters);
     }

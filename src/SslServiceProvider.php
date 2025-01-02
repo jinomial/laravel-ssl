@@ -2,25 +2,28 @@
 
 namespace Jinomial\LaravelSsl;
 
-use Illuminate\Contracts\Support\DeferrableProvider;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 use Jinomial\LaravelSsl\Commands\ShowCertificateCommand;
 
-class SslServiceProvider extends ServiceProvider implements DeferrableProvider
+/**
+ * @api
+ */
+class SslServiceProvider extends ServiceProvider
 {
     /**
      * Register the service provider.
      *
      * @return void
      */
-    public function register()
+    public function register(): void
     {
         $this->mergeConfigFrom(
             __DIR__.'/../config/ssl.php',
             'ssl'
         );
 
-        $this->app->singleton('ssl', function ($app) {
+        $this->app->singleton(SslManager::class, function (Application $app) {
             return new SslManager($app);
         });
     }
@@ -28,7 +31,7 @@ class SslServiceProvider extends ServiceProvider implements DeferrableProvider
     /**
      * Bootstrap package services.
      */
-    public function boot()
+    public function boot(): void
     {
         // Publish configuration files.
         $this->publishes([
@@ -41,17 +44,5 @@ class SslServiceProvider extends ServiceProvider implements DeferrableProvider
                 ShowCertificateCommand::class,
             ]);
         }
-    }
-
-    /**
-     * Get the services provided by the provider.
-     *
-     * @return array
-     */
-    public function provides()
-    {
-        return [
-            'ssl',
-        ];
     }
 }

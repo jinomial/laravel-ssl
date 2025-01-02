@@ -6,6 +6,8 @@ interface Driver
 {
     /**
      * Perform a security certificate lookup.
+     *
+     * @api
      */
-    public function show($host, $port = '443', array $options = []);
+    public function show(string $host, string $port = '443', array $options = []);
 }
