@@ -107,6 +107,16 @@ class SslManager implements FactoryContract
     }
 
     /**
+     * Create an instance of the OpenSsl driver.
+     *
+     * @psalm-suppress PossiblyUnusedMethod
+     */
+    protected function createStreamDriver(string $name, array $config): Driver
+    {
+        return new Drivers\Stream($name, $config);
+    }
+
+    /**
      * Get a fresh Guzzle HTTP client instance.
      */
     protected function guzzle(array $config): HttpClient

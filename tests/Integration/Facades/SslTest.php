@@ -29,3 +29,9 @@ it('can access the openssl driver by name', function () {
 
     expect($openSsl)->toBeInstanceOf(Driver::class);
 });
+
+it('can access the stream driver by name', function () {
+    $stream = Ssl::driver('stream');
+
+    expect($stream)->toBeInstanceOf(Driver::class);
+});

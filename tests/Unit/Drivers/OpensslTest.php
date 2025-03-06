@@ -29,3 +29,13 @@ it('shows a certificate', function () {
     $answer = $driver->show(HOST, 443);
     expect($answer[0]['certificate']['subject']['CN'])->toEqual(HOST);
 })->group('network');
+
+it('shows multiple certificates', function () {
+    $client = new HttpClient();
+    $driver = new Openssl('openssl', $client);
+    $answer = $driver->show([
+        ['host' => HOST, 'port' => '110'],
+        ['host' => HOST, 'port' => '443'],
+    ]);
+    expect($answer[1]['certificate']['subject']['CN'])->toEqual(HTTPS_HOST);
+})->group('network');

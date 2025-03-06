@@ -24,13 +24,23 @@ return [
     | plus their respective settings. Several examples have been configured for
     | you and you are free to add your own as your application requires.
     |
-    | Supported: "openssl"
+    | Supported: "openssl" or "stream"
     |
     */
 
     'drivers' => [
+
+        // openssl driver uses the openssl binary.
+        // requires the openssl binary be in your $PATH.
         'openssl' => [
             'driver' => 'openssl',
+        ],
+
+        // stream driver uses stream_* functions and the SSL context.
+        // requires the PHP openssl extension.
+        'stream' => [
+            'driver' => 'stream',
+            'timeout' => 10,
         ],
     ],
 
