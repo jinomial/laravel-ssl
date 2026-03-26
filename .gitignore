@@ -7,3 +7,4 @@ testbench.yaml
 vendor
 node_modules
 *.cache
+.idea
