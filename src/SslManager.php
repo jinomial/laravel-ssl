@@ -42,9 +42,10 @@ class SslManager implements FactoryContract
     /**
      * Get a driver instance by name.
      */
+    #[\Override]
     public function driver(?string $name = null): Driver
     {
-        $name = $name ?: $this->getDefaultDriver();
+        $name = $name ?? $this->getDefaultDriver();
 
         return $this->drivers[$name] = $this->get($name);
     }
@@ -117,6 +118,16 @@ class SslManager implements FactoryContract
     }
 
     /**
+     * Create an instance of the File driver.
+     *
+     * @psalm-suppress PossiblyUnusedMethod
+     */
+    protected function createFileDriver(string $name): Driver
+    {
+        return new Drivers\File($name);
+    }
+
+    /**
      * Get a fresh Guzzle HTTP client instance.
      */
     protected function guzzle(array $config): HttpClient
@@ -173,7 +184,7 @@ class SslManager implements FactoryContract
      */
     public function purge(?string $name = null): void
     {
-        $name = $name ?: $this->getDefaultDriver();
+        $name = $name ?? $this->getDefaultDriver();
 
         unset($this->drivers[$name]);
     }

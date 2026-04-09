@@ -3,10 +3,12 @@
 namespace Jinomial\LaravelSsl\Drivers;
 
 use Jinomial\LaravelSsl\Contracts\Ssl\Driver as DriverContract;
+use Jinomial\LaravelSsl\Support\Certificate;
+use Jinomial\LaravelSsl\Support\CertificateCollection;
 use OpenSSLCertificate;
 use UnexpectedValueException;
 
-class Stream extends Driver implements DriverContract
+final class Stream extends Driver implements DriverContract
 {
     /**
      * The name of the option for specifying retrieval of the full chain.
@@ -33,7 +35,8 @@ class Stream extends Driver implements DriverContract
     /**
      * Get a security certificate used by $host:$port.
      */
-    public function show(string|array $host, string $port = '443', array $options = []): array
+    #[\Override]
+    public function show(string|array $host, string $port = '443', array $options = []): CertificateCollection
     {
         if (! is_array($host)) {
             $host = [['host' => $host, 'port' => $port]];
@@ -42,23 +45,22 @@ class Stream extends Driver implements DriverContract
         return $this->runStreams($host, $options);
     }
 
-    private function runStreams(array $questions, array $options): array
+    private function runStreams(array $questions, array $options): CertificateCollection
     {
-        $results = [];
+        $results = new CertificateCollection();
 
         foreach ($questions as $question) {
             try {
-                $results[] = $this->capture($question, $options);
+                $results = $results->merge($this->capture($question, $options));
             } catch (UnexpectedValueException $e) {
                 // Connection error. Port closed or not SSL/TLS/STARTTLS.
-                $results[] = null;
             }
         }
 
         return $results;
     }
 
-    private function capture(array $question, array $options): array
+    private function capture(array $question, array $options): CertificateCollection
     {
         $host = $question['host'] ?? '';
         $port = (string)($question['port'] ?? '443');
@@ -110,14 +112,17 @@ class Stream extends Driver implements DriverContract
         $captured = $params['options']['ssl']['peer_certificate_chain'] ??
             [$params['options']['ssl']['peer_certificate']];
 
-        $chain = [];
+        $chain = new CertificateCollection();
         foreach ($captured as $certificate) {
-            $chain[] = $this->parseX509($certificate);
+            $chain->push(new Certificate($this->parseX509($certificate), null, $host, $port));
         }
 
         return $chain;
     }
 
+    /**
+     * @return resource
+     */
     private function openStream(string $scheme, string $host, string $port, array $options = [])
     {
         $timeout10s = 10;
@@ -145,10 +150,12 @@ class Stream extends Driver implements DriverContract
      *
      * Specifies the crypto method to use and to capture and verify peer
      * certificates.
+     *
+     * @return resource
      */
     private function getStreamContext(array $options = [])
     {
-        $chain = $options[Stream::OPTION_CHAIN] ?? Stream::OPTION_CHAIN_DEFAULT;
+        $chain = ($options[Stream::OPTION_CHAIN] ?? Stream::OPTION_CHAIN_DEFAULT) === true;
         $capture = $chain ? 'capture_peer_cert_chain' : 'capture_peer_cert';
 
         $cryptoMethod = $options[Stream::OPTION_CRYPTO_METHOD] ??
@@ -164,13 +171,19 @@ class Stream extends Driver implements DriverContract
         return $context;
     }
 
+    /**
+     * @return void
+     *
+     * @param resource $stream
+     */
     private function startTlsSmtp($stream)
     {
         if ($this->readLineForSuccess($stream, '220 ')) {
 
             // The server is connected...
 
-            $heloFqdn = gethostbyaddr(gethostbyname(gethostname()));
+            $hostname = gethostname() ?: 'localhost';
+            $heloFqdn = gethostbyaddr(gethostbyname($hostname));
             fwrite($stream, "HELO $heloFqdn\n");
 
             if ($this->readLineForSuccess($stream, '250 ')) {
@@ -198,6 +211,11 @@ class Stream extends Driver implements DriverContract
         }
     }
 
+    /**
+     * @return void
+     *
+     * @param resource $stream
+     */
     private function startTlsPop($stream)
     {
         if ($this->readLineForSuccess($stream, '+OK')) {
@@ -223,6 +241,11 @@ class Stream extends Driver implements DriverContract
         }
     }
 
+    /**
+     * @return void
+     *
+     * @param resource $stream
+     */
     private function startTlsImap($stream)
     {
         if ($this->readLineForSuccess($stream, '* OK ')) {
@@ -261,13 +284,28 @@ class Stream extends Driver implements DriverContract
         return $parsed;
     }
 
-    private function readLine($stream): string
+    /**
+     * @return false|string
+     */
+    /**
+     * @param resource $stream
+     */
+    private function readLine($stream): string|false
     {
         return stream_get_line($stream, 1000, "\n");
     }
 
+    /**
+     * @param resource $stream
+     */
     private function readLineForSuccess($stream, string $successNeedle): bool
     {
-        return strpos($this->readLine($stream), $successNeedle) === 0;
+        $line = $this->readLine($stream);
+
+        if ($line === false) {
+            return false;
+        }
+
+        return strpos($line, $successNeedle) === 0;
     }
 }

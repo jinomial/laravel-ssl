@@ -29,11 +29,16 @@ return [
     */
 
     'drivers' => [
+ 
+         // openssl driver uses the openssl binary.
+         // requires the openssl binary be in your $PATH.
+         'openssl' => [
+             'driver' => 'openssl',
+         ],
 
-        // openssl driver uses the openssl binary.
-        // requires the openssl binary be in your $PATH.
-        'openssl' => [
-            'driver' => 'openssl',
+        // file driver parses local certificate files.
+        'file' => [
+            'driver' => 'file',
         ],
 
         // stream driver uses stream_* functions and the SSL context.
@@ -43,5 +48,31 @@ return [
             'timeout' => 10,
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Monitored Hosts
+    |--------------------------------------------------------------------------
+    |
+    | Here you may list the hosts you wish to monitor for SSL health. These
+    | will be checked by the `ssl:check` Artisan command.
+    |
+    */
+
+    'monitored_hosts' => [
+        // 'google.com',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Warning Threshold
+    |--------------------------------------------------------------------------
+    |
+    | Number of days before expiration to start showing a warning (yellow)
+    | in the `ssl:check` command.
+    |
+    */
+
+    'warning_threshold' => 14,
 
 ];

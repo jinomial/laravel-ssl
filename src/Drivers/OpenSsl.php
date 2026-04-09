@@ -6,12 +6,14 @@ use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\ServerException;
 use InvalidArgumentException;
 use Jinomial\LaravelSsl\Contracts\Ssl\Driver as DriverContract;
+use Jinomial\LaravelSsl\Support\Certificate;
+use Jinomial\LaravelSsl\Support\CertificateCollection;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
 
-class OpenSsl extends Driver implements DriverContract
+final class OpenSsl extends Driver implements DriverContract
 {
     /**
      * The name of the option for specifying retrieval of an id-ad-caIssuers.
@@ -28,26 +30,17 @@ class OpenSsl extends Driver implements DriverContract
      */
     public const OPTION_DER = 'der';
 
-    /**
-     * Guzzle client instance.
-     */
-    protected ClientInterface $client;
-
-    /**
-     * Create a new Ssl driver instance.
-     *
-     * @return void
-     */
-    public function __construct(string $name, ClientInterface $client)
-    {
-        $this->name = $name;
-        $this->client = $client;
+    public function __construct(
+        protected string $name,
+        protected ClientInterface $client
+    ) {
     }
 
     /**
      * Get a security certificate used by $host:$port.
      */
-    public function show(string|array $host, string $port = '443', array $options = []): array
+    #[\Override]
+    public function show(string|array $host, string $port = '443', array $options = []): CertificateCollection
     {
         if (! is_array($host)) {
             $host = [['host' => $host, 'port' => $port]];
@@ -59,17 +52,17 @@ class OpenSsl extends Driver implements DriverContract
     /**
      * Make HTTP requests for each lookup question.
      */
-    protected function runProcesses(array $questions, array $options): array
+    protected function runProcesses(array $questions, array $options): CertificateCollection
     {
-        $adCaIssuers = $options[OpenSsl::OPTION_ID_AD_CAISSUERS] ??
-            OpenSsl::OPTION_ID_AD_CAISSUERS_DEFAULT;
-        $results = [];
+        $adCaIssuers = ($options[OpenSsl::OPTION_ID_AD_CAISSUERS] ??
+            OpenSsl::OPTION_ID_AD_CAISSUERS_DEFAULT) === true;
+        $results = new CertificateCollection();
 
         foreach ($questions as $question) {
             $host = $question['host'] ?? 'localhost';
             $port = (string)($question['port'] ?? '443');
 
-            $certificate = null;
+            $certificateData = null;
             $verification = null;
 
             try {
@@ -81,16 +74,15 @@ class OpenSsl extends Driver implements DriverContract
                     $x509 = $details['x509'];
                     $verification = $details['verification'];
                 }
-                $certificate = openssl_x509_parse($x509);
+                $certificateData = openssl_x509_parse($x509);
             } catch (ServerException $e) {
             } catch (ProcessFailedException $e) {
             } catch (ProcessTimedOutException $e) {
             }
 
-            $results[] = [
-                'certificate' => $certificate,
-                'verification' => $verification,
-            ];
+            if ($certificateData !== false && $certificateData !== null) {
+                $results->push(new Certificate($certificateData, $verification, $host, $port));
+            }
         }
 
         return $results;
@@ -107,7 +99,7 @@ class OpenSsl extends Driver implements DriverContract
             );
         }
 
-        $handshake = $this->getHandshake($host, $port, $options);
+        $handshake = $this->getHandshake($host, $port);
         $verification = $this->getVerification($handshake);
         $x509 = $this->getX509($handshake, $options);
 
@@ -119,10 +111,8 @@ class OpenSsl extends Driver implements DriverContract
 
     /**
      * Get the output of `echo | openssl s_client -connect $host:$port`.
-     *
-     * @psalm-suppress PossiblyUnusedParam
      */
-    protected function getHandshake(string $host, string $port, array $options = []): string
+    protected function getHandshake(string $host, string $port): string
     {
         $arguments = [
             'openssl',

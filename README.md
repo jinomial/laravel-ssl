@@ -6,6 +6,7 @@ An SSL/TLS service and facade for Laravel. Capture peer certificates using 'open
 |---------|--------------------------------|
 | openssl | Executes the *openssl* command |
 | stream  | PHP's `stream_*()` functions   |
+| file    | Parses local certificate files |
 
 ## Installation
 
@@ -33,31 +34,55 @@ php artisan vendor:publish --provider="Jinomial\LaravelSsl\SslServiceProvider" -
 Capture the certificate of *jinomial.com:443* using the default driver:
 
 ```php
-$response = Ssl::show('jinomial.com', 443);
-print_r($response);
+use Jinomial\LaravelSsl\Facades\Ssl;
 
-// > Response varies by driver
+// Returns a CertificateCollection
+$certificates = Ssl::show('google.com');
+
+$cert = $certificates->first();
+
+echo $cert->getCommonName(); // "google.com"
+echo $cert->isValid() ? 'Valid' : 'Expired/Invalid';
+echo $cert->getValidTo()->diffForHumans(); // "in 3 months"
+```
+
+### Certificate Helper Methods
+
+The `Certificate` DTO provides several helpful methods:
+
+| Method | Description |
+|--------|-------------|
+| `isValid()` | Returns true if the cert is not expired and verification passed |
+| `isExpired()` | Returns true if the current time is past the `validTo` date |
+| `getCommonName()` | Get the Common Name (CN) from the subject |
+| `getIssuerCommonName()` | Get the Common Name (CN) from the issuer |
+| `getValidFrom()` | Returns a `Carbon` instance for the start date |
+| `getValidTo()` | Returns a `Carbon` instance for the expiration date |
+| `getSubjectAlternativeNames()` | Returns an array of SANs |
+| `getHost()` / `getPort()` | The connection details used for this certificate |
+
+### Advanced Usage
+
+Multiple lookups at once:
+
+```php
+$results = Ssl::show([
+    ['host' => 'google.com', 'port' => '443'],
+    ['host' => 'github.com', 'port' => '443'],
+]);
+
+// Find a specific result
+$githubCert = $results->where('host', 'github.com')->first();
 ```
 
 Use a specific driver:
 
 ```php
-$response = Ssl::driver('stream')->show('jinomial.com', '443', [
+$response = Ssl::driver('stream')->show('google.com', '443', [
     // Get the certificate only without the CA Chain.
-    Jinomial\LaravelSsl\Drivers\Stream::OPTION_CHAIN => false,
+    \Jinomial\LaravelSsl\Drivers\Stream::OPTION_CHAIN => false,
 ]);
 ```
-
-Multiple lookups at once:
-
-```php
-$response = Ssl::show([
-    ['host' => 'jinomial.com', 'port' => '443'],
-    ['host' => 'www2.jinomial.com', 'port' => '8443'],
-]);
-```
-
-### openssl driver responses
 
 The *openssl* driver executes the *openssl* binary (must be in your $PATH) to retrieve the X509 certificate.
 
@@ -242,7 +267,18 @@ Signed Certificate Timestamp:
 )
 ```
 
-The **id-ad-caIssuers** property can be followed to get the issuer certificate:
+### Local File Driver
+ 
+ You can also parse local certificate files using the `file` driver. This is useful for checking certificates stored on disk.
+ 
+ ```php
+ use Jinomial\LaravelSsl\Facades\Ssl;
+ 
+ // Provide a path to a certificate file
+ $certificates = Ssl::driver('file')->show('/path/to/certificate.crt');
+ ```
+ 
+ The **id-ad-caIssuers** property can be followed to get the issuer certificate:
 
 ```php
 $response = Ssl::show(
@@ -259,7 +295,31 @@ The *stream* driver uses PHP's `stream_*` functions and SSL context to capture e
 Each response is indexed. The subindex is the chain sequence with 0 being the host, 1 being the issuer (if not self signed), etc. Results are the return value from [`openssl_x509_parse()`](https://www.php.net/manual/function.openssl-x509-parse.php).
 
 
-## Custom Drivers
+## Artisan Commands
+ 
+ ### Show Certificate
+ 
+ Show details for a specific host:
+ 
+ ```bash
+ php artisan ssl:show google.com
+ ```
+ 
+ ### Bulk SSL Check
+ 
+ Monitor multiple hosts at once. This command can check hosts provided as arguments or those configured in `config/ssl.php`.
+ 
+ ```bash
+ # Check specific hosts
+ php artisan ssl:check google.com github.com
+ 
+ # Check all hosts configured in ssl.monitored_hosts
+ php artisan ssl:check
+ ```
+ 
+ The command will output a table showing the status, common name, and expiration time for each host.
+ 
+ ## Custom Drivers
 
 Create a class that extends `Jinomial\LaravelSsl\Drivers\Driver`.
 

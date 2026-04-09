@@ -4,6 +4,7 @@ namespace Jinomial\LaravelSsl;
 
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
+use Jinomial\LaravelSsl\Commands\CheckSslCommand;
 use Jinomial\LaravelSsl\Commands\ShowCertificateCommand;
 
 /**
@@ -16,6 +17,7 @@ class SslServiceProvider extends ServiceProvider
      *
      * @return void
      */
+    #[\Override]
     public function register(): void
     {
         $this->mergeConfigFrom(
@@ -42,6 +44,7 @@ class SslServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 ShowCertificateCommand::class,
+                CheckSslCommand::class,
             ]);
         }
     }

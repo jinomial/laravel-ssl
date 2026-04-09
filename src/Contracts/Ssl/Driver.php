@@ -2,6 +2,8 @@
 
 namespace Jinomial\LaravelSsl\Contracts\Ssl;
 
+use Jinomial\LaravelSsl\Support\CertificateCollection;
+
 interface Driver
 {
     /**
@@ -9,5 +11,5 @@ interface Driver
      *
      * @api
      */
-    public function show(string $host, string $port = '443', array $options = []);
+    public function show(string|array $host, string $port = '443', array $options = []): CertificateCollection;
 }

@@ -26,8 +26,9 @@ it('is a Driver interface', function () {
 it('shows a certificate', function () {
     $client = new HttpClient();
     $driver = new Openssl('openssl', $client);
-    $answer = $driver->show(HOST, 443);
-    expect($answer[0]['certificate']['subject']['CN'])->toEqual(HOST);
+    $answer = $driver->show(HOST, '443');
+    expect($answer->first())->toBeInstanceOf(\Jinomial\LaravelSsl\Support\Certificate::class);
+    expect($answer->first()->getCommonName())->toEqual(HOST);
 })->group('network');
 
 it('shows multiple certificates', function () {
@@ -37,5 +38,5 @@ it('shows multiple certificates', function () {
         ['host' => HOST, 'port' => '110'],
         ['host' => HOST, 'port' => '443'],
     ]);
-    expect($answer[1]['certificate']['subject']['CN'])->toEqual(HTTPS_HOST);
+    expect($answer->where('port', '443')->first()->getCommonName())->toEqual(HOST);
 })->group('network');
